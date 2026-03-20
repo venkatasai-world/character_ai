@@ -1,0 +1,467 @@
+{% extends 'base.html' %}
+{% block title %}Create Character - AI Character App{% endblock %}
+
+{% block content %}
+<div class="create-char-page">
+    <div class="create-particles" id="createParticles"></div>
+    
+    <div class="create-container">
+        <div class="create-header">
+            <a href="{{ url_for('main.dashboard') }}" class="back-btn">
+                <i class="fas fa-arrow-left"></i>
+            </a>
+            <div>
+                <h1>Create Your AI Character</h1>
+                <p>Design a unique personality to chat with</p>
+            </div>
+        </div>
+        
+        <div class="create-card">
+            <form method="POST" enctype="multipart/form-data" class="create-form">
+                <div class="create-form-layout">
+                    <!-- Left: Form Fields -->
+                    <div class="form-left">
+                        <div class="form-group">
+                            <label><i class="fas fa-signature"></i> Character Name</label>
+                            <input type="text" name="name" placeholder="e.g., Luna, RoboBuddy, Professor Ray..." required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label><i class="fas fa-masks-theater"></i> Personality</label>
+                            <select name="personality">
+                                {% for p in personalities %}
+                                <option value="{{ p }}">{{ p | capitalize }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label><i class="fas fa-book-open"></i> Background Story</label>
+                            <textarea name="background_story" rows="4" 
+                                      placeholder="Tell the story of this character... Where are they from? What do they do?"></textarea>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label><i class="fas fa-comment-dots"></i> Speaking Style</label>
+                            <select name="speaking_style">
+                                {% for s in speaking_styles %}
+                                <option value="{{ s }}">{{ s | capitalize }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label><i class="fas fa-palette"></i> Accent Color</label>
+                            <div class="color-picker-row">
+                                <input type="color" name="color_accent" value="#7c3aed" class="color-picker">
+                                <div class="color-presets">
+                                    <div class="color-preset" style="background:#7c3aed" onclick="setColor('#7c3aed')"></div>
+                                    <div class="color-preset" style="background:#ec4899" onclick="setColor('#ec4899')"></div>
+                                    <div class="color-preset" style="background:#06b6d4" onclick="setColor('#06b6d4')"></div>
+                                    <div class="color-preset" style="background:#f97316" onclick="setColor('#f97316')"></div>
+                                    <div class="color-preset" style="background:#22c55e" onclick="setColor('#22c55e')"></div>
+                                    <div class="color-preset" style="background:#eab308" onclick="setColor('#eab308')"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Right: Avatar Upload -->
+                    <div class="form-right">
+                        <label class="avatar-upload-label">Upload Avatar</label>
+                        <div class="avatar-upload-area" id="avatarArea" onclick="document.getElementById('avatarInput').click()">
+                            <div class="avatar-preview" id="avatarPreview">
+                                <i class="fas fa-user-astronaut"></i>
+                            </div>
+                            <div class="avatar-upload-text">
+                                <p><i class="fas fa-cloud-upload-alt"></i> Click to upload</p>
+                                <span>PNG, JPG, GIF, WebP</span>
+                            </div>
+                        </div>
+                        <input type="file" id="avatarInput" name="avatar" accept="image/*" style="display:none" onchange="previewAvatar(event)">
+                        
+                        <div class="char-preview-box">
+                            <div class="char-preview-header">Character Preview</div>
+                            <div class="char-preview-card">
+                                <div class="prev-avatar" id="prevAvatar">
+                                    <span id="prevInitial">?</span>
+                                </div>
+                                <div class="prev-info">
+                                    <span class="prev-name" id="prevName">Character Name</span>
+                                    <span class="prev-pers" id="prevPers">Personality</span>
+                                </div>
+                                <div class="online-dot online"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="create-form-footer">
+                    <a href="{{ url_for('main.dashboard') }}" class="btn-cancel">Cancel</a>
+                    <button type="submit" class="btn-create-submit">
+                        <i class="fas fa-magic"></i> Create Character
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+.create-char-page {
+    min-height: 100vh;
+    background: var(--gradient-dark);
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 40px 20px;
+    position: relative;
+    overflow: hidden;
+}
+
+.create-particles {
+    position: fixed;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+    z-index: 0;
+}
+
+.create-container {
+    position: relative;
+    z-index: 2;
+    width: 100%;
+    max-width: 900px;
+}
+
+.create-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.back-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    text-decoration: none;
+    transition: all 0.2s;
+    flex-shrink: 0;
+}
+
+.back-btn:hover {
+    background: rgba(124, 58, 237, 0.15);
+    color: var(--primary-light);
+    border-color: rgba(124, 58, 237, 0.4);
+}
+
+.create-header h1 {
+    font-size: 26px;
+    font-weight: 800;
+    background: var(--gradient-main);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.create-header p {
+    font-size: 14px;
+    color: var(--text-muted);
+}
+
+.create-card {
+    background: rgba(10, 10, 35, 0.85);
+    backdrop-filter: blur(30px);
+    border: 1px solid rgba(124, 58, 237, 0.2);
+    border-radius: 24px;
+    padding: 36px;
+    box-shadow: 0 30px 80px rgba(0,0,0,0.4);
+}
+
+.create-form-layout {
+    display: grid;
+    grid-template-columns: 1fr 280px;
+    gap: 40px;
+    margin-bottom: 30px;
+}
+
+.form-left {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.form-group label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--primary-light);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.form-group input,
+.form-group textarea,
+.form-group select {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 12px;
+    padding: 12px 16px;
+    color: var(--text-primary);
+    font-size: 14px;
+    font-family: 'Inter', sans-serif;
+    outline: none;
+    transition: all 0.3s;
+    width: 100%;
+}
+
+.form-group input:focus, .form-group textarea:focus, .form-group select:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.15);
+}
+
+.form-group select option { background: #0d0d2b; }
+.form-group textarea { resize: vertical; min-height: 90px; }
+
+.color-picker-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.color-picker {
+    width: 46px;
+    height: 38px;
+    border-radius: 8px;
+    border: 1px solid rgba(255,255,255,0.1);
+    background: none;
+    cursor: pointer;
+    padding: 2px;
+}
+
+.color-presets {
+    display: flex;
+    gap: 8px;
+}
+
+.color-preset {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: all 0.2s;
+}
+
+.color-preset:hover {
+    transform: scale(1.2);
+    border-color: white;
+}
+
+/* Avatar Upload */
+.form-right {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.avatar-upload-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--primary-light);
+}
+
+.avatar-upload-area {
+    border: 2px dashed rgba(124, 58, 237, 0.4);
+    border-radius: 16px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    transition: all 0.3s;
+    background: rgba(124, 58, 237, 0.05);
+    min-height: 160px;
+    justify-content: center;
+}
+
+.avatar-upload-area:hover {
+    border-color: var(--primary);
+    background: rgba(124, 58, 237, 0.1);
+}
+
+.avatar-preview {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: var(--gradient-main);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 36px;
+    color: white;
+    overflow: hidden;
+}
+
+.avatar-preview img { width: 100%; height: 100%; object-fit: cover; }
+
+.avatar-upload-text p { color: var(--primary-light); font-size: 13px; font-weight: 600; margin: 0; }
+.avatar-upload-text span { color: var(--text-muted); font-size: 11px; }
+
+/* Character Preview Box */
+.char-preview-box {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 14px;
+    overflow: hidden;
+}
+
+.char-preview-header {
+    padding: 10px 14px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+
+.char-preview-card {
+    padding: 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.prev-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--gradient-main);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    font-weight: 700;
+    color: white;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.prev-avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+.prev-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.prev-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: white;
+}
+
+.prev-pers {
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+.create-form-footer {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 12px;
+    padding-top: 20px;
+    border-top: 1px solid rgba(255,255,255,0.05);
+}
+
+.btn-cancel {
+    padding: 12px 24px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 50px;
+    color: var(--text-muted);
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 14px;
+    transition: all 0.2s;
+}
+
+.btn-cancel:hover { color: white; background: rgba(255,255,255,0.1); }
+
+.btn-create-submit {
+    padding: 12px 32px;
+    background: var(--gradient-main);
+    border: none;
+    border-radius: 50px;
+    color: white;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    box-shadow: 0 8px 25px rgba(124, 58, 237, 0.4);
+    transition: all 0.3s;
+}
+
+.btn-create-submit:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 15px 35px rgba(124, 58, 237, 0.6);
+}
+</style>
+
+<script>
+function previewAvatar(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(ev) {
+        const preview = document.getElementById('avatarPreview');
+        preview.innerHTML = `<img src="${ev.target.result}" style="width:80px;height:80px;border-radius:50%;object-fit:cover">`;
+        const prevAvatar = document.getElementById('prevAvatar');
+        prevAvatar.innerHTML = `<img src="${ev.target.result}">`;
+    };
+    reader.readAsDataURL(file);
+}
+
+function setColor(color) {
+    document.querySelector('.color-picker').value = color;
+}
+
+// Live preview updates
+document.querySelector('input[name="name"]').addEventListener('input', function() {
+    document.getElementById('prevName').textContent = this.value || 'Character Name';
+    document.getElementById('prevInitial').textContent = this.value ? this.value[0].toUpperCase() : '?';
+});
+
+document.querySelector('select[name="personality"]').addEventListener('change', function() {
+    document.getElementById('prevPers').textContent = this.value;
+});
+
+// Particles
+(function() {
+    const c = document.getElementById('createParticles');
+    for(let i=0;i<40;i++){
+        const s=document.createElement('div');
+        s.style.cssText=`position:absolute;left:${Math.random()*100}%;top:${Math.random()*100}%;width:${Math.random()*2+1}px;height:${Math.random()*2+1}px;background:white;border-radius:50%;opacity:${Math.random()*0.3+0.05};animation:twinkle ${Math.random()*4+2}s ease-in-out infinite;animation-delay:${Math.random()*3}s`;
+        c.appendChild(s);
+    }
+})();
+</script>
+{% endblock %}

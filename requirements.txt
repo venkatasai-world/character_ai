@@ -1,0 +1,16 @@
+Flask==3.0.3
+Flask-SQLAlchemy==3.1.1
+Flask-Login==0.6.3
+Flask-WTF==1.2.1
+WTForms==3.1.2
+SQLAlchemy==2.0.36
+Werkzeug==3.0.6
+python-dotenv==1.0.1
+google-generativeai==0.8.3
+resend==2.4.0
+Pillow==10.4.0
+itsdangerous==2.2.0
+langdetect==1.0.9
+deep-translator==1.11.4
+gunicorn==23.0.0
+email-validator==2.2.0

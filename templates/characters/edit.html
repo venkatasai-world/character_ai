@@ -1,0 +1,82 @@
+{% extends 'base.html' %}
+{% block title %}Edit Character - AI Character App{% endblock %}
+
+{% block content %}
+<div class="create-char-page">
+    <div class="create-particles" id="createParticles"></div>
+    <div class="create-container">
+        <div class="create-header">
+            <a href="{{ url_for('main.dashboard') }}" class="back-btn">
+                <i class="fas fa-arrow-left"></i>
+            </a>
+            <div>
+                <h1>Edit {{ character.name }}</h1>
+                <p>Update character personality and details</p>
+            </div>
+        </div>
+        
+        <div class="create-card">
+            <form method="POST" enctype="multipart/form-data" class="create-form">
+                <div class="create-form-layout">
+                    <div class="form-left">
+                        <div class="form-group">
+                            <label><i class="fas fa-signature"></i> Character Name</label>
+                            <input type="text" name="name" value="{{ character.name }}" required>
+                        </div>
+                        <div class="form-group">
+                            <label><i class="fas fa-masks-theater"></i> Personality</label>
+                            <select name="personality">
+                                {% for p in personalities %}
+                                <option value="{{ p }}" {{ 'selected' if character.personality == p }}>{{ p | capitalize }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label><i class="fas fa-book-open"></i> Background Story</label>
+                            <textarea name="background_story" rows="4">{{ character.background_story or '' }}</textarea>
+                        </div>
+                        <div class="form-group">
+                            <label><i class="fas fa-comment-dots"></i> Speaking Style</label>
+                            <select name="speaking_style">
+                                {% for s in speaking_styles %}
+                                <option value="{{ s }}" {{ 'selected' if character.speaking_style == s }}>{{ s | capitalize }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label><i class="fas fa-palette"></i> Accent Color</label>
+                            <input type="color" name="color_accent" value="{{ character.color_accent }}" class="color-picker">
+                        </div>
+                    </div>
+                    
+                    <div class="form-right">
+                        <label class="avatar-upload-label">Update Avatar</label>
+                        <div class="avatar-upload-area" onclick="document.getElementById('avatarInput').click()">
+                            <div class="avatar-preview" id="avatarPreview">
+                                {% if character.avatar and character.avatar != 'default_char.png' %}
+                                    <img src="{{ url_for('static', filename='uploads/' + character.avatar) }}" style="width:80px;height:80px;border-radius:50%;object-fit:cover">
+                                {% else %}
+                                    <span style="font-size:36px;color:white;">{{ character.name[0].upper() }}</span>
+                                {% endif %}
+                            </div>
+                            <div class="avatar-upload-text">
+                                <p><i class="fas fa-cloud-upload-alt"></i> Click to change</p>
+                                <span>PNG, JPG, GIF, WebP</span>
+                            </div>
+                        </div>
+                        <input type="file" id="avatarInput" name="avatar" accept="image/*" style="display:none" onchange="previewAvatar(event)">
+                    </div>
+                </div>
+                <div class="create-form-footer">
+                    <a href="{{ url_for('main.dashboard') }}" class="btn-cancel">Cancel</a>
+                    <button type="submit" class="btn-create-submit">
+                        <i class="fas fa-save"></i> Save Changes
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% include 'characters/_char_styles.html' %}
+{% endblock %}

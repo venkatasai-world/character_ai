@@ -1,0 +1,315 @@
+{% extends 'base.html' %}
+{% block title %}Chat with {{ character.name }} - AI Character{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/chat.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="chat-app" id="chatApp">
+    
+    <!-- SIDEBAR -->
+    <aside class="chat-sidebar" id="chatSidebar">
+        <!-- Sidebar Header -->
+        <div class="sidebar-header">
+            <div class="sidebar-logo">
+                <span class="logo-icon">Ⓐ</span>
+                <span class="logo-text">AI Character</span>
+            </div>
+            <div class="sidebar-icons">
+                <button class="icon-btn" title="Notifications" id="notifBtn">
+                    <i class="fas fa-bell"></i>
+                    <span class="notif-badge">2</span>
+                </button>
+            </div>
+        </div>
+        
+        <!-- User Profile Section -->
+        <div class="sidebar-profile">
+            <div class="profile-avatar">
+                {% if current_user.avatar and current_user.avatar != 'default_avatar.png' %}
+                    <img src="{{ url_for('static', filename='uploads/' + current_user.avatar) }}" alt="{{ current_user.name }}">
+                {% else %}
+                    <span>{{ current_user.name[0].upper() }}</span>
+                {% endif %}
+            </div>
+            <div class="profile-info">
+                <span class="profile-name">{{ current_user.name }}</span>
+                <span class="profile-email">{{ current_user.email[:25] }}{% if current_user.email|length > 25 %}...{% endif %}</span>
+            </div>
+            <div class="profile-actions">
+                <a href="{{ url_for('profile.view') }}" class="icon-btn-sm" title="Profile"><i class="fas fa-cog"></i></a>
+                <a href="{{ url_for('auth.logout') }}" class="icon-btn-sm" title="Logout"><i class="fas fa-sign-out-alt"></i></a>
+            </div>
+        </div>
+        
+        <!-- Characters List -->
+        <div class="sidebar-section">
+            <div class="sidebar-section-header">
+                <span><i class="fas fa-masks-theater"></i> AI Character</span>
+                <a href="{{ url_for('characters.create') }}" class="sidebar-add-btn" title="Create Character">
+                    <i class="fas fa-plus"></i>
+                </a>
+            </div>
+            
+            <div class="character-list">
+                {% for char in characters %}
+                <a href="{{ url_for('chat.chat_page', character_id=char.id) }}" 
+                   class="char-list-item {{ 'active' if char.id == character.id else '' }}">
+                    <div class="char-list-avatar">
+                        {% if char.avatar and char.avatar != 'default_char.png' %}
+                            <img src="{{ url_for('static', filename='uploads/' + char.avatar) }}" alt="{{ char.name }}">
+                        {% else %}
+                            <span>{{ char.name[0].upper() }}</span>
+                        {% endif %}
+                        <div class="char-status-dot {{ 'online' if char.is_online else 'offline' }}"
+                             style="background: {{ char.color_accent }}"></div>
+                    </div>
+                    <div class="char-list-info">
+                        <span class="char-list-name">{{ char.name }}</span>
+                        <span class="char-list-pers">{{ char.personality | capitalize }}</span>
+                    </div>
+                    <div class="char-list-meta">
+                        <div class="char-dot" style="background: {{ char.color_accent }}"></div>
+                    </div>
+                </a>
+                {% endfor %}
+                
+                {% if not characters %}
+                <div class="no-chars-sidebar">
+                    <a href="{{ url_for('characters.create') }}" class="create-char-link">
+                        <i class="fas fa-plus-circle"></i> Create your first character
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Language Selector -->
+        <div class="sidebar-bottom">
+            <div class="lang-selector">
+                <i class="fas fa-globe"></i>
+                <select id="languageSelect" onchange="changeLanguage(this.value)">
+                    <option value="en" {% if current_user.language == 'en' %}selected{% endif %}>🇺🇸 English</option>
+                    <option value="hi" {% if current_user.language == 'hi' %}selected{% endif %}>🇮🇳 Hindi</option>
+                    <option value="es" {% if current_user.language == 'es' %}selected{% endif %}>🇪🇸 Spanish</option>
+                    <option value="fr" {% if current_user.language == 'fr' %}selected{% endif %}>🇫🇷 French</option>
+                    <option value="de" {% if current_user.language == 'de' %}selected{% endif %}>🇩🇪 German</option>
+                    <option value="ja" {% if current_user.language == 'ja' %}selected{% endif %}>🇯🇵 Japanese</option>
+                    <option value="ko" {% if current_user.language == 'ko' %}selected{% endif %}>🇰🇷 Korean</option>
+                    <option value="zh" {% if current_user.language == 'zh' %}selected{% endif %}>🇨🇳 Chinese</option>
+                    <option value="ar" {% if current_user.language == 'ar' %}selected{% endif %}>🇸🇦 Arabic</option>
+                    <option value="pt" {% if current_user.language == 'pt' %}selected{% endif %}>🇧🇷 Portuguese</option>
+                    <option value="ru" {% if current_user.language == 'ru' %}selected{% endif %}>🇷🇺 Russian</option>
+                    <option value="te" {% if current_user.language == 'te' %}selected{% endif %}>🇮🇳 Telugu</option>
+                    <option value="ta" {% if current_user.language == 'ta' %}selected{% endif %}>🇮🇳 Tamil</option>
+                </select>
+            </div>
+            <a href="{{ url_for('main.dashboard') }}" class="back-dash-btn">
+                <i class="fas fa-th-large"></i> Dashboard
+            </a>
+        </div>
+    </aside>
+    
+    <!-- CHAT AREA -->
+    <main class="chat-main">
+        
+        <!-- Chat Header -->
+        <div class="chat-header">
+            <button class="sidebar-toggle" onclick="toggleSidebar()" title="Toggle sidebar">
+                <i class="fas fa-bars"></i>
+            </button>
+            
+            <div class="chat-header-char">
+                <div class="chat-header-avatar">
+                    {% if character.avatar and character.avatar != 'default_char.png' %}
+                        <img src="{{ url_for('static', filename='uploads/' + character.avatar) }}" alt="{{ character.name }}">
+                    {% else %}
+                        <span>{{ character.name[0].upper() }}</span>
+                    {% endif %}
+                    <div class="header-online-dot" style="background: {{ character.color_accent }}"></div>
+                </div>
+                <div class="chat-header-info">
+                    <h2>{{ character.name }}</h2>
+                    <span class="header-status" id="headerStatus">
+                        <span class="status-dot online-anim"></span>
+                        {{ character.personality | capitalize }} · Online
+                    </span>
+                </div>
+            </div>
+            
+            <div class="chat-header-actions">
+                <button class="icon-btn" onclick="toggleVoiceOutput()" id="voiceOutputBtn" title="Toggle voice output">
+                    <i class="fas fa-volume-up"></i>
+                </button>
+                <button class="icon-btn" onclick="clearChat()" title="Clear chat">
+                    <i class="fas fa-broom"></i>
+                </button>
+                <a href="{{ url_for('chat.export_chat', character_id=character.id) }}" class="icon-btn" title="Export chat">
+                    <i class="fas fa-download"></i>
+                </a>
+                <a href="{{ url_for('characters.edit', character_id=character.id) }}" class="icon-btn" title="Edit character">
+                    <i class="fas fa-pen"></i>
+                </a>
+                <div class="header-dots">
+                    <button class="icon-btn"><i class="fas fa-ellipsis-h"></i></button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Chat Messages -->
+        <div class="chat-messages" id="chatMessages">
+            <!-- (Star background removed) -->
+            
+            {% if not messages %}
+            <div class="chat-welcome">
+                <div class="welcome-char-avatar">
+                    {% if character.avatar and character.avatar != 'default_char.png' %}
+                        <img src="{{ url_for('static', filename='uploads/' + character.avatar) }}" alt="{{ character.name }}">
+                    {% else %}
+                        <span>{{ character.name[0].upper() }}</span>
+                    {% endif %}
+                </div>
+                <h3>Start chatting with {{ character.name }}!</h3>
+                <p>{{ character.background_story or 'A unique AI character ready to chat with you.' }}</p>
+            </div>
+            {% endif %}
+            
+            {% for msg in messages %}
+                {% if msg.role == 'user' %}
+                <div class="message-row user-row" data-id="{{ msg.id }}">
+                    <div class="message-bubble user-bubble">
+                        {% if msg.message_type == 'sticker' %}
+                            <img src="{{ url_for('static', filename='stickers/' + msg.content) }}" 
+                                 alt="Sticker" class="sticker-message">
+                        {% else %}
+                            <p>{{ msg.content }}</p>
+                        {% endif %}
+                        <span class="msg-time">{{ msg.timestamp.strftime('%H:%M') }}</span>
+                    </div>
+                    <div class="message-avatar user-msg-avatar">
+                        {% if current_user.avatar and current_user.avatar != 'default_avatar.png' %}
+                            <img src="{{ url_for('static', filename='uploads/' + current_user.avatar) }}" alt="You">
+                        {% else %}
+                            <span>{{ current_user.name[0].upper() }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+                {% else %}
+                <div class="message-row ai-row" data-id="{{ msg.id }}">
+                    <div class="message-avatar ai-msg-avatar">
+                        {% if character.avatar and character.avatar != 'default_char.png' %}
+                            <img src="{{ url_for('static', filename='uploads/' + character.avatar) }}" alt="{{ character.name }}">
+                        {% else %}
+                            <span>{{ character.name[0].upper() }}</span>
+                        {% endif %}
+                    </div>
+                    <div class="message-bubble ai-bubble">
+                        <p>{{ msg.content }}</p>
+                        <span class="msg-time">{{ msg.timestamp.strftime('%H:%M') }}</span>
+                    </div>
+                </div>
+                {% endif %}
+            {% endfor %}
+            
+            <!-- Typing indicator (hidden by default) -->
+            <div class="message-row ai-row" id="typingIndicator" style="display:none;">
+                <div class="message-avatar ai-msg-avatar">
+                    {% if character.avatar and character.avatar != 'default_char.png' %}
+                        <img src="{{ url_for('static', filename='uploads/' + character.avatar) }}" alt="{{ character.name }}">
+                    {% else %}
+                        <span>{{ character.name[0].upper() }}</span>
+                    {% endif %}
+                </div>
+                <div class="typing-bubble">
+                    <span class="typing-text">AI is typing</span>
+                    <div class="typing-dots">
+                        <div class="typing-dot"></div>
+                        <div class="typing-dot"></div>
+                        <div class="typing-dot"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- STICKER PANEL -->
+        <div class="sticker-panel" id="stickerPanel">
+            <div class="sticker-panel-header">
+                <span><i class="fas fa-grip-horizontal"></i> Stickers</span>
+                <button onclick="toggleStickerPanel()" class="sticker-close-btn">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="sticker-grid" id="stickerGrid">
+                {% if sticker_files %}
+                    {% for sticker in sticker_files %}
+                    <div class="sticker-item" onclick="sendSticker('{{ sticker }}')" title="{{ sticker }}">
+                        <img src="{{ url_for('static', filename='stickers/' + sticker) }}" 
+                             alt="{{ sticker }}"
+                             onerror="this.parentElement.style.display='none'">
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="no-stickers-msg">
+                        <i class="fas fa-face-smile"></i>
+                        <p>No stickers yet!<br>Add PNG/GIF files to<br><code>static/stickers/</code></p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- EMOJI PANEL -->
+        <div class="emoji-panel" id="emojiPanel">
+            <div class="emoji-grid" id="emojiGrid"></div>
+        </div>
+        
+        <!-- INPUT AREA -->
+        <div class="chat-input-area" id="chatInputArea">
+            <!-- Input Row -->
+            <div class="input-container">
+                <button class="input-btn emoji-btn" id="emojiBtn" onclick="toggleEmojiPanel()" title="Emoji">
+                    <i class="fas fa-face-smile"></i>
+                </button>
+                
+                <button class="input-btn sticker-btn" id="stickerBtn" onclick="toggleStickerPanel()" title="Stickers">
+                    <i class="fas fa-grip-horizontal"></i>
+                </button>
+                
+                <div class="text-input-wrapper">
+                    <textarea id="messageInput" 
+                              placeholder="Set typing..." 
+                              rows="1"
+                              onkeydown="handleKeyDown(event)"
+                              oninput="autoResize(this)"></textarea>
+                </div>
+                
+                <button class="input-btn mic-btn" id="micBtn" onclick="toggleVoiceInput()" title="Voice input">
+                    <i class="fas fa-microphone"></i>
+                </button>
+                
+                <button class="send-btn" id="sendBtn" onclick="sendMessage()">
+                    <i class="fas fa-paper-plane"></i>
+                    <span>Send</span>
+                </button>
+            </div>
+        </div>
+    </main>
+</div>
+
+<!-- Hidden data -->
+<script>
+const CHARACTER_ID = {{ character.id }};
+const CHARACTER_NAME = "{{ character.name }}";
+const CHARACTER_AVATAR = "{% if character.avatar and character.avatar != 'default_char.png' %}{{ url_for('static', filename='uploads/' + character.avatar) }}{% endif %}";
+const USER_AVATAR = "{% if current_user.avatar and current_user.avatar != 'default_avatar.png' %}{{ url_for('static', filename='uploads/' + current_user.avatar) }}{% endif %}";
+const USER_NAME = "{{ current_user.name }}";
+const USER_INITIAL = "{{ current_user.name[0].upper() }}";
+const CHAR_INITIAL = "{{ character.name[0].upper() }}";
+const SEND_URL = "{{ url_for('chat.send_message', character_id=character.id) }}";
+const CLEAR_URL = "{{ url_for('chat.clear_chat', character_id=character.id) }}";
+let currentLanguage = "{{ current_user.language or 'en' }}";
+</script>
+
+<link rel="stylesheet" href="{{ url_for('static', filename='css/chat.css') }}">
+<script src="{{ url_for('static', filename='js/chat.js') }}"></script>
+{% endblock %}
