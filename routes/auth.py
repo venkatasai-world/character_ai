@@ -27,8 +27,10 @@ def login():
             next_page = request.args.get('next')
             flash(f'Welcome back, {user.name}! 🎉', 'success')
             return redirect(next_page if next_page else url_for('main.dashboard'))
+        elif not user:
+            flash('No account found with this email. Please sign up first.', 'error')
         else:
-            flash('Invalid email or password. Please try again.', 'error')
+            flash('Incorrect password. Please try again.', 'error')
     
     return render_template('auth/login.html')
 
@@ -67,8 +69,10 @@ def register():
         db.session.add(user)
         db.session.commit()
         
-        # Send welcome email
-        send_welcome_email(name, email)
+        # Send welcome email (non-blocking). In Resend test mode, external emails can fail.
+        email_sent = send_welcome_email(name, email)
+        if not email_sent:
+            flash('Account created, but welcome email could not be sent. Please verify your Resend domain/sender settings.', 'info')
         
         login_user(user)
         flash(f'Welcome to AI Character App, {name}! 🚀', 'success')
@@ -94,7 +98,10 @@ def forgot_password():
         if user:
             token = user.generate_reset_token()
             db.session.commit()
-            send_password_reset_email(user.name, user.email, token)
+            email_sent = send_password_reset_email(user.name, user.email, token)
+            if not email_sent:
+                flash('Password reset email could not be sent right now. Please check email settings and try again.', 'error')
+                return redirect(url_for('auth.forgot_password'))
         
         # Always show success to prevent email enumeration
         flash('If that email exists, a reset link has been sent. Check your inbox! 📧', 'success')
