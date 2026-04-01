@@ -18,7 +18,15 @@ def create_app():
     # If SQLALCHEMY_DATABASE_URI uses a *relative* sqlite path (e.g. sqlite:///ai_character.db),
     # the DB file location depends on the current working directory. That makes characters
     # "disappear" when you restart/run the app from a different folder.
-    db_uri = os.getenv('SQLALCHEMY_DATABASE_URI', 'sqlite:///ai_character.db')
+    # Prefer explicit SQLALCHEMY_DATABASE_URI, then Render DATABASE_URL, then local sqlite.
+    db_uri = (
+        os.getenv('SQLALCHEMY_DATABASE_URI')
+        or os.getenv('DATABASE_URL')
+        or 'sqlite:///ai_character.db'
+    )
+    # Render/Postgres URLs can arrive as postgres://, which SQLAlchemy expects as postgresql://
+    if db_uri.startswith('postgres://'):
+        db_uri = db_uri.replace('postgres://', 'postgresql://', 1)
     if db_uri.startswith('sqlite:///'):
         # Strip sqlite:/// and resolve relative paths against the project root.
         db_path = db_uri.replace('sqlite:///', '', 1)
