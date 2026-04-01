@@ -1,11 +1,15 @@
 """
 Auth Routes - Register, Login, Logout, Forgot/Reset Password
 """
+import os
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session
 from flask_login import login_user, logout_user, login_required, current_user
 from models import db, User
 from utils.email import send_welcome_email, send_password_reset_email
 from datetime import datetime
+from dotenv import load_dotenv
+
+load_dotenv()
 
 auth_bp = Blueprint('auth', __name__, url_prefix='/auth')
 
@@ -100,7 +104,10 @@ def forgot_password():
             db.session.commit()
             email_sent = send_password_reset_email(user.name, user.email, token)
             if not email_sent:
+                app_url = os.getenv('APP_URL', request.host_url.rstrip('/'))
+                reset_url = f"{app_url}/auth/reset-password/{token}"
                 flash('Password reset email could not be sent right now. Please check email settings and try again.', 'error')
+                flash(f'Development reset link: {reset_url}', 'info')
                 return redirect(url_for('auth.forgot_password'))
         
         # Always show success to prevent email enumeration
