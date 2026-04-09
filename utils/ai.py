@@ -1,18 +1,34 @@
 """
-AI Helper - Gemini API Integration
+AI Helper - Groq API Integration
 """
 import os
-import google.generativeai as genai
+from groq import Groq
 from dotenv import load_dotenv
 
 load_dotenv()
 
-# Configure Gemini
-genai.configure(api_key=os.getenv('GEMINI_API_KEY'))
+# Configure Groq
+GROQ_API_KEY = os.getenv('GROQ_API_KEY') or os.getenv('GEMINI_API_KEY')
+GROQ_MODEL = os.getenv('GROQ_MODEL', 'llama-3.1-8b-instant')
+client = Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
+
+
+def _chat_completion(messages, temperature=0.7, max_tokens=512):
+    """Wrapper for Groq chat completions with safe fallbacks."""
+    if not client:
+        raise RuntimeError("Missing GROQ_API_KEY in environment.")
+
+    response = client.chat.completions.create(
+        model=GROQ_MODEL,
+        messages=messages,
+        temperature=temperature,
+        max_tokens=max_tokens
+    )
+    return (response.choices[0].message.content or "").strip()
 
 def get_ai_response(character, chat_history, user_message, user_name='', target_language='en'):
     """
-    Get AI response from Gemini 2.5 Flash
+    Get AI response from Groq chat model
     
     Args:
         character: Character model instance
@@ -25,7 +41,6 @@ def get_ai_response(character, chat_history, user_message, user_name='', target_
         str: AI response text
     """
     try:
-        # Use Gemini system_instruction so the character rules apply for every turn.
         system_prompt = character.get_system_prompt()
         if user_name:
             system_prompt += f"\nThe user you are chatting with is named: {user_name}."
@@ -34,26 +49,18 @@ def get_ai_response(character, chat_history, user_message, user_name='', target_
         if target_language != 'en':
             system_prompt += f"\nIMPORTANT: Always respond in the language with code '{target_language}'. The user prefers this language."
 
-        model = genai.GenerativeModel('gemini-2.5-flash', system_instruction=system_prompt)
-        
-        # Build conversation history
-        history = []
+        # Build messages list for Groq Chat Completions API
+        messages = [{"role": "system", "content": system_prompt}]
         for msg in chat_history[-20:]:  # Last 20 messages for context
             if msg.message_type == 'text':
-                role = 'user' if msg.role == 'user' else 'model'
-                history.append({
-                    'role': role,
-                    'parts': [msg.content]
-                })
-        
-        # Start chat (system_instruction will already be applied)
-        chat = model.start_chat(history=history)
-        response = chat.send_message(user_message)
-        
-        return response.text
+                role = 'user' if msg.role == 'user' else 'assistant'
+                messages.append({"role": role, "content": msg.content})
+
+        messages.append({"role": "user", "content": user_message})
+        return _chat_completion(messages, temperature=0.7, max_tokens=700)
         
     except Exception as e:
-        print(f"Gemini API error: {e}")
+        print(f"Groq API error: {e}")
         return f"I'm having a bit of trouble right now. Could you try again? 🙏"
 
 
@@ -65,34 +72,37 @@ def get_sticker_response(character, chat_history, sticker_filename, user_name=''
         system_prompt = character.get_system_prompt()
         if user_name:
             system_prompt += f"\nThe user you are chatting with is named: {user_name}."
-
-        model = genai.GenerativeModel('gemini-2.5-flash', system_instruction=system_prompt)
-        
-        prompt = f"""
-The user just sent you a sticker/emoji image called '{sticker_filename}'. 
-Respond naturally to this sticker as if you can see it. Keep it short and fun (1-2 sentences max).
-React to what the sticker likely depicts based on its name."""
-        
-        response = model.generate_content(prompt)
-        return response.text
+        sticker_prompt = (
+            f"The user just sent you a sticker/emoji image called '{sticker_filename}'. "
+            "Respond naturally to this sticker as if you can see it. "
+            "Keep it short and fun (1-2 sentences max). "
+            "React to what the sticker likely depicts based on its name."
+        )
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": sticker_prompt}
+        ]
+        return _chat_completion(messages, temperature=0.8, max_tokens=120)
         
     except Exception as e:
-        print(f"Gemini sticker response error: {e}")
+        print(f"Groq sticker response error: {e}")
         return "Haha, love the sticker! 😄"
 
 
 def translate_text(text, target_language):
     """
-    Translate text to target language using Gemini
+    Translate text to target language using Groq
     """
     if target_language == 'en' or not target_language:
         return text
     
     try:
-        model = genai.GenerativeModel('gemini-2.5-flash')
         prompt = f"Translate the following text to {target_language}. Return ONLY the translated text, nothing else:\n\n{text}"
-        response = model.generate_content(prompt)
-        return response.text.strip()
+        messages = [
+            {"role": "system", "content": "You are a precise translation assistant."},
+            {"role": "user", "content": prompt}
+        ]
+        return _chat_completion(messages, temperature=0.2, max_tokens=400)
     except Exception as e:
         print(f"Translation error: {e}")
         return text
@@ -100,13 +110,15 @@ def translate_text(text, target_language):
 
 def detect_language(text):
     """
-    Detect the language of text using Gemini
+    Detect the language of text using Groq
     """
     try:
-        model = genai.GenerativeModel('gemini-2.5-flash')
         prompt = f"Detect the language of this text and return ONLY the ISO 639-1 language code (e.g., 'en', 'es', 'fr', 'hi', etc.). Text: '{text}'"
-        response = model.generate_content(prompt)
-        return response.text.strip().lower()[:5]
+        messages = [
+            {"role": "system", "content": "Return only ISO 639-1 language code."},
+            {"role": "user", "content": prompt}
+        ]
+        return _chat_completion(messages, temperature=0.0, max_tokens=10).lower()[:5]
     except Exception as e:
         print(f"Language detection error: {e}")
         return 'en'
